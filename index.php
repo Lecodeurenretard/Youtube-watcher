@@ -28,21 +28,6 @@
             @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding&family=PT+Serif&display=swap');
             
             <?php require("style.css"); ?>
-        
-        
-            #video{
-                --width: 960px;
-                --height: 540px;
-
-                background-color: black;
-
-                /**height: var(--height);
-                width: var(--width);**/
-
-                position: absolute;
-                top: calc(50vh - var(--height)/2 );
-                left: calc(50vw - var(--width)/2);
-            }
             
             table{
                 caption-side: bottom;
@@ -110,10 +95,10 @@
             <?php
             
                 $tosearch = $playload["search"];
-                $tosearch = str_replace(' ', '%20', $tosearch);   //on fait en sorte que ça passe dans l'url
-                ifNotSet($nb, $playload["nbppage"], 25);
+                $tosearch = urlencode($tosearch);   //on fait en sorte que ça passe dans l'url
+                ifNotSet($playload["nbppage"], $nb, 25);
                 
-                $handle = curl_init("https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=" . $tosearch . "&maxResults=". $nb ."&pagetoken=" . $playload["token"] . "&key=AIzaSyBm10K2I-QgkzCB8zUxnmoQTcu1UaSH9_E");
+                $handle = curl_init("https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=$tosearch&maxResults=$nb&pagetoken=" . $playload["token"] . "&key=AIzaSyBm10K2I-QgkzCB8zUxnmoQTcu1UaSH9_E");
                 
                 curl_setopt($handle, CURLOPT_HTTPHEADER, array('application/json'));
                 curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
@@ -122,7 +107,7 @@
                 if($response === false){throw new Error("L'éxécution de la requète à échouée.");}
                
                 $converted = json_decode($response);
-                if(isset($converted->error)){
+                if(property_exists($converted, 'error')){
                     $err = $converted->error;
                     
                     switch($err->errors[0]->reason){
@@ -170,8 +155,6 @@
                 ifNotSet($converted->nextPageToken, $nextPageToken);
                 ifNotSet($converted->prevPageToken, $prevPageToken);
                 $converted = $converted->items;
-                
-                echo "https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=" . $tosearch . "&maxResults=". $nb ."&pagetoken=" . $playload["token"] . "&key=AIzaSyBm10K2I-QgkzCB8zUxnmoQTcu1UaSH9_E";
             ?>
             <table>
             <caption>Les résultats de la recherche</caption>
@@ -235,6 +218,7 @@
             <form method="POST">
                 <input type="hidden" id="where" name="token" required />
                 <input type="hidden" id="what" name="search" required />
+                <input type="hidden" name="search" value="<?php echo $playload["search"]; ?>" required />
                 <button type="button" onclick="preSubmit(false)" id="prec">Page précédente</button>
                 <button type="button" onclick="preSubmit(true)" id="suiv">Page suivante</button>
             </form>
@@ -257,11 +241,10 @@
             <?php
                 $tosearch = $playload["search"];
                 
-                $tosearch = str_replace(' ', '%20', $tosearch);   //on fait en sorte que ça passe dans l'url
-                if(empty($playload["nbppage"])){$nb = 25;}
-                else{$nb = $playload["nbppage"];}
+                $tosearch = urlencode($tosearch);   //on fait en sorte que ça passe dans l'url
+                $nb = (empty($playload["nbppage"])) ? 25 : $playload["nbppage"];                
                 
-                $handle = curl_init("https://youtube.googleapis.com/youtube/v3/search?part=snippet&maxResults=". $nb ."&q=" . $tosearch . "&&key=AIzaSyBm10K2I-QgkzCB8zUxnmoQTcu1UaSH9_E"); echo "$nb vidéos pour $tosearch";
+                $handle = curl_init("https://youtube.googleapis.com/youtube/v3/search?part=snippet&maxResults=$nb&q=$tosearch&key=AIzaSyBm10K2I-QgkzCB8zUxnmoQTcu1UaSH9_E"); 
                     
                 curl_setopt($handle, CURLOPT_HTTPHEADER, array('application/json'));
                 curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
@@ -274,6 +257,7 @@
                 if(isset($converted->error)){
                     $err = $converted->error;
                     
+                    $email = false; //si l'email est display
                     switch($err->errors[0]->reason){
                         case "quotaExceeded":
                             echo '<em class="error">Une Erreur est survenue, veuillez réessayer dans une heure et en cas d\'échec attendez demain.</em>';
@@ -282,10 +266,12 @@
                         case "badRequest":
                             if($err->errors[0]->message == "API key not valid. Please pass a valid API key."){echo "Clef API invalide, contactez <a href='mailto:leretardatn@gmail.com'>LeRetardatN</a> (dev)";}
                             else{echo "<em class='error'>Une erreur inconnue est survenue, veuillez réessayer.</em><textarea hidden>"; print_r($err);  echo"</textarea>";}
+                            $email = true;
                             break;
                             
                         case "accessNotConfigured":
                             echo "<em class='error'>Requète Bloquée à cause d'un abus, Contactez immédiatement <a href='mailto:leretardatn@gmail.com'>LeRetardatN</a> (dev) pour le lui faire savoir.</em>";
+                            $email = true;
                             break;
                         
                         case "concurrentLimitExceeded":
@@ -293,15 +279,18 @@
                             break;
                         
                         case "dailyLimitExceeded":
-                            echo '<em class="error">Une Erreur est survenue, veuillez réessayer demain.<br />Si l\'erreur se répète, contacter <a href=\'mailto:leretardatn@gmail.com\'>LeRetardatN</a> (dev)</em>';
+                            echo '<em class="error">Une Erreur est survenue, veuillez réessayer demain.</em>';
+
                             break;
                             
                         case "internalError":
                             echo "Une erreur du côté des serveurs de Youtube, vous pouvez contacter <a href='mailto:leretardatn@gmail.com'>LeRetardatN</a> (dev).";
+                            $email = true;
                             break;
                             
                         case "movedPermanently":
-                            echo "Une erreur est survenue, contactez <a href='mailto:leretardatn@gmail.com'>LeRetardatN</a> (dev) pour qu'il la répare.";
+                            echo "Une erreur est survenue, contactez <a href='mailto:leretardatn@gmail.com'>LeRetardatN</a> (dev) pour qu'il la corrige.";
+                            $email = true;
                             break;
                             
                         case "invalidQuery":
@@ -311,7 +300,7 @@
                         default:
                             echo "<em class='error'>Une erreur inconnue est survenue, veuillez réessayer.</em><textarea hidden>"; print_r($err);  echo"</textarea>";
                     }
-                    echo "<br /><p ". (empty($_SESSION["err"]) ? "hidden" : '') .">Contact du dev: <a href='mailto:leretardatn@gmail.com' >LeRetardatN</a></p>";
+                    echo "<br /><p ". ((empty($_SESSION["err"]) && !$email) ? "hidden" : '') .">Contact du dev: <a href='mailto:leretardatn@gmail.com' >LeRetardatN</a></p>";
                     $_SESSION["err"] = (isset($_SESSION["err"]) ? ($_SESSION["err"]+1) : 1);
                     exit;
                 }
@@ -319,7 +308,6 @@
                 ifNotSet($converted->nextPageToken, $nextPageToken);
                 ifNotSet($converted->prevPageToken, $prevPageToken);
                 $converted = $converted->items;
-                var_dump($converted);
             ?>
             <table>
             <caption>Les résultats de la recherche</caption>
