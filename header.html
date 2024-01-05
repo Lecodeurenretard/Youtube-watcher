@@ -1,0 +1,46 @@
+<style>
+    #logo{
+        max-width: 30vw;
+        
+        border: none;
+        margin-right: 3vw;
+    }
+    
+    
+    #searching{
+        left: 10vw;
+    }    
+    
+    #bandeau{
+        display: block;
+        background-color: darkslategray;
+        padding: 0px ;
+        padding-top: 1%;
+        
+        padding: 8px;
+    }
+
+    #bandeau *{
+        display: inline-flex;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        
+        max-height: 10vh;
+        position: relative;
+
+        margin-top: 0px;
+        padding: 0px ;
+    }
+</style>
+<div id="bandeau">
+    <a href="index.php"><img src="img/logo.png" id="logo"/></a>
+    <form id="searching" method='POST'>
+        <input name="search" id="search" size="9" />
+        <button type="button"><img src="img/loupe.png" alt="Icône de recherche"/></button>
+    </form>
+</div>    
+    <script>
+        const inputs= document.querySelector("#searching").children;
+        
+        inputs[1].addEventListener("click", () =>{ window.location.assign("http://www.youtube.nils.test.sc2mnrf0802.universe.wf/index.php?search=" + inputs[0].value); });
+    </script>
